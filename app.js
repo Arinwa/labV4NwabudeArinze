@@ -5,14 +5,14 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const { db, getUser } = require('./database');
+const { db, getUser } = require('./database'); // Ensure db is imported here
 const app = express();
 const port = 5000;
 
 const TOKEN = process.env.TOKEN;
 
 app.set('view engine', 'ejs');
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 const authenticateJWT = (req, res, next) => {
@@ -31,14 +31,36 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
-const authorizeRole = (role) => {
+const authorizeRoles = (...roles) => {
   return (req, res, next) => {
-    if (req.user.role === role) {
+    if (roles.includes(req.user.role)) {
       next();
+    } else {
+      res.redirect(`/identify?redirect=${req.originalUrl}`);
+    }
+  };
+};
+
+const reidentify = async (req, res, next) => {
+  const { name, password, redirect } = req.body;
+  try {
+    const user = await getUser(name);
+    if (user) {
+      const match = await bcrypt.compare(password, user.password);
+      if (match) {
+        req.user = user;
+        const token = jwt.sign({ userID: user.userID, username: user.username, role: user.role }, TOKEN, { expiresIn: '1h' });
+        res.cookie('token', token, { httpOnly: true });
+        res.redirect(redirect || '/');
+      } else {
+        res.status(401).send('Unauthorized');
+      }
     } else {
       res.status(401).send('Unauthorized');
     }
-  };
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
 };
 
 app.get('/', (req, res) => {
@@ -99,7 +121,7 @@ app.post('/REGISTER', async (req, res) => {
   }
 });
 
-app.get('/admin', authenticateJWT, authorizeRole('admin'), (req, res) => {
+app.get('/admin', authenticateJWT, authorizeRoles('admin'), (req, res) => {
   db.all("SELECT * FROM users", [], (err, rows) => {
     if (err) {
       console.error('Database error:', err.message);
@@ -110,17 +132,23 @@ app.get('/admin', authenticateJWT, authorizeRole('admin'), (req, res) => {
   });
 });
 
-app.get('/student1', authenticateJWT, authorizeRole('student'), (req, res) => {
+app.get('/student1', authenticateJWT, authorizeRoles('student', 'teacher', 'admin'), (req, res) => {
   res.render('student1');
 });
 
-app.get('/student2', authenticateJWT, authorizeRole('student'), (req, res) => {
+app.get('/student2', authenticateJWT, authorizeRoles('student', 'teacher', 'admin'), (req, res) => {
   res.render('student2');
 });
 
-app.get('/teacher', authenticateJWT, authorizeRole('teacher'), (req, res) => {
+app.get('/teacher', authenticateJWT, authorizeRoles('teacher', 'admin'), (req, res) => {
   res.render('teacher');
 });
+
+app.get('/identify', (req, res) => {
+  res.render('identify', { redirect: req.query.redirect });
+});
+
+app.post('/identify', reidentify);
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
