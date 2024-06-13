@@ -12,7 +12,7 @@ const port = 5000;
 const TOKEN = process.env.TOKEN;
 
 app.set('view engine', 'ejs');
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 const authenticateJWT = (req, res, next) => {
@@ -128,13 +128,11 @@ app.post('/REGISTER', async (req, res) => {
 });
 
 app.get('/admin', authenticateJWT, authorizeRoles('admin'), (req, res) => {
-  console.log('Admin route accessed');
   db.all("SELECT * FROM users", [], (err, rows) => {
     if (err) {
       console.error('Database error:', err.message);
       res.status(500).send(err.message);
     } else {
-      console.log('Users fetched:', rows);
       res.render('admin', { users: rows });
     }
   });
