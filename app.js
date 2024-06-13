@@ -4,14 +4,16 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { getUser } = require('./database');
+const cookieParser = require('cookie-parser');
+const { db, getUser } = require('./database');
 const app = express();
 const port = 5000;
 
 const TOKEN = process.env.TOKEN;
 
 app.set('view engine', 'ejs');
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 const authenticateJWT = (req, res, next) => {
   const token = req.cookies.token;
@@ -56,7 +58,22 @@ app.post('/LOGIN', async (req, res) => {
       if (match) {
         const token = jwt.sign({ userID: user.userID, username: user.username, role: user.role }, TOKEN, { expiresIn: '1h' });
         res.cookie('token', token, { httpOnly: true });
-        res.render('start');
+
+        // Redirect based on role
+        switch (user.role) {
+          case 'student':
+            res.redirect(`/student${user.userID.charAt(user.userID.length - 1)}`);
+            break;
+          case 'teacher':
+            res.redirect('/teacher');
+            break;
+          case 'admin':
+            res.redirect('/admin');
+            break;
+          default:
+            res.render('start');
+            break;
+        }
       } else {
         res.render('fail');
       }
@@ -83,14 +100,26 @@ app.post('/REGISTER', async (req, res) => {
 });
 
 app.get('/admin', authenticateJWT, authorizeRole('admin'), (req, res) => {
-  // Fetch users from the database
   db.all("SELECT * FROM users", [], (err, rows) => {
     if (err) {
+      console.error('Database error:', err.message);
       res.status(500).send(err.message);
     } else {
       res.render('admin', { users: rows });
     }
   });
+});
+
+app.get('/student1', authenticateJWT, authorizeRole('student'), (req, res) => {
+  res.render('student1');
+});
+
+app.get('/student2', authenticateJWT, authorizeRole('student'), (req, res) => {
+  res.render('student2');
+});
+
+app.get('/teacher', authenticateJWT, authorizeRole('teacher'), (req, res) => {
+  res.render('teacher');
 });
 
 app.listen(port, () => {

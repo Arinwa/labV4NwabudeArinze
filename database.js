@@ -7,22 +7,34 @@ const db = new sqlite3.Database('./users.db');
 db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS users (userID TEXT PRIMARY KEY, username TEXT, role TEXT, password TEXT)");
 
-  const addUser = (userID, username, role, password) => {
+  // Insert initial users
+  const insert = 'INSERT OR IGNORE INTO users (userID, username, role, password) VALUES (?, ?, ?, ?)';
+  db.run(insert, ['id1', 'user1', 'student', bcrypt.hashSync('password', 10)]);
+  db.run(insert, ['id2', 'user2', 'student', bcrypt.hashSync('password2', 10)]);
+  db.run(insert, ['id3', 'user3', 'teacher', bcrypt.hashSync('password3', 10)]);
+  db.run(insert, ['admin', 'admin', 'admin', bcrypt.hashSync('admin', 10)]);
+});
+
+const addUser = (username, password) => {
+  return new Promise((resolve, reject) => {
     const saltRounds = 10;
     bcrypt.hash(password, saltRounds, (err, hash) => {
-      if (err) throw err;
-      const stmt = db.prepare("INSERT INTO users (userID, username, role, password) VALUES (?, ?, ?, ?)");
-      stmt.run(userID, username, role, hash);
-      stmt.finalize();
+      if (err) {
+        reject(err);
+      } else {
+        const stmt = db.prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+        stmt.run(username, hash, (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+        stmt.finalize();
+      }
     });
-  };
-
-  // Add initial users
-  addUser('id1', 'user1', 'student', 'password');
-  addUser('id2', 'user2', 'student', 'password2');
-  addUser('id3', 'user3', 'teacher', 'password3');
-  addUser('admin', 'admin', 'admin', 'admin');
-});
+  });
+};
 
 const getUser = (username) => {
   return new Promise((resolve, reject) => {
@@ -36,4 +48,4 @@ const getUser = (username) => {
   });
 };
 
-module.exports = { getUser };
+module.exports = { db, addUser, getUser };
