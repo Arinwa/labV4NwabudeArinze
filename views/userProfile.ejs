@@ -1,0 +1,25 @@
+<!-- views/userProfile.ejs -->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>User Profile</title>
+</head>
+
+<body>
+  <h1>Welcome, <%= user.username %>!</h1>
+  <p>User ID: <%= user.userID %>
+  </p>
+  <p>Role: <%= user.role %>
+  </p>
+
+  <% if (user.role==='student' && user.userID==='id1' ) { %>
+    <a href="/student1">Student1 Page</a>
+    <% } else if (user.role==='student' && user.userID==='id2' ) { %>
+      <a href="/student2">Student2 Page</a>
+      <% } else if (user.role==='teacher' ) { %>
+        <a href="/teacher">Teacher Page</a>
+        <% } %>
+</body>
+
+</html>

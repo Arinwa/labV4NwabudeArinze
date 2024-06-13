@@ -5,14 +5,14 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const { db, addUser, getUser } = require('./database'); // Ensure addUser is imported
+const { db, addUser, getUser } = require('./database');
 const app = express();
 const port = 5000;
 
 const TOKEN = process.env.TOKEN;
 
 app.set('view engine', 'ejs');
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const authenticateJWT = (req, res, next) => {
@@ -84,16 +84,16 @@ app.post('/LOGIN', async (req, res) => {
         // Redirect based on role
         switch (user.role) {
           case 'student':
-            res.redirect(`/student${user.userID.charAt(user.userID.length - 1)}`);
+            res.redirect(`/users/${user.userID}`);
             break;
           case 'teacher':
-            res.redirect('/teacher');
+            res.redirect(`/users/${user.userID}`);
             break;
           case 'admin':
-            res.redirect('/admin');
+            res.redirect(`/users/${user.userID}`);
             break;
           default:
-            res.render('start');
+            res.redirect(`/users/${user.userID}`);
             break;
         }
       } else {
@@ -157,6 +157,27 @@ app.get('/identify', (req, res) => {
 });
 
 app.post('/identify', reidentify);
+
+// Dynamic route for user profiles
+app.get('/users/:userId', authenticateJWT, (req, res) => {
+  const userId = req.params.userId;
+  if (req.user.userID === userId) {
+    if (req.user.role === 'admin') {
+      db.all("SELECT * FROM users", [], (err, rows) => {
+        if (err) {
+          console.error('Database error:', err.message);
+          res.status(500).send(err.message);
+        } else {
+          res.render('admin', { users: rows });
+        }
+      });
+    } else {
+      res.render('userProfile', { user: req.user });
+    }
+  } else {
+    res.status(403).send('Forbidden');
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
