@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const { db, getUser } = require('./database'); // Ensure db is imported here
+const { db, addUser, getUser } = require('./database'); // Ensure addUser is imported
 const app = express();
 const port = 5000;
 
@@ -112,21 +112,29 @@ app.get('/REGISTER', (req, res) => {
 });
 
 app.post('/REGISTER', async (req, res) => {
-  const { name, password } = req.body;
+  const { userID, name, password, role } = req.body;
+  if (role !== 'student' && role !== 'teacher') {
+    return res.status(400).send('Invalid role');
+  }
   try {
-    await addUser(name, password);
-    res.redirect('/LOGIN');
+    await new Promise((resolve, reject) => {
+      addUser(userID, name, role, password);
+      resolve();
+    });
+    res.redirect('/identify');
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
 app.get('/admin', authenticateJWT, authorizeRoles('admin'), (req, res) => {
+  console.log('Admin route accessed');
   db.all("SELECT * FROM users", [], (err, rows) => {
     if (err) {
       console.error('Database error:', err.message);
       res.status(500).send(err.message);
     } else {
+      console.log('Users fetched:', rows);
       res.render('admin', { users: rows });
     }
   });
