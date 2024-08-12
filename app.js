@@ -159,19 +159,27 @@ app.post('/identify', reidentify);
 // Dynamic route for user profiles
 app.get('/users/:userId', authenticateJWT, (req, res) => {
   const userId = req.params.userId;
-  if (req.user.userID === userId) {
-    if (req.user.role === 'admin') {
-      db.all("SELECT * FROM users", [], (err, rows) => {
-        if (err) {
-          console.error('Database error:', err.message);
-          res.status(500).send(err.message);
-        } else {
-          res.render('admin', { users: rows });
-        }
-      });
-    } else {
-      res.render('userProfile', { user: req.user });
-    }
+
+  // If the logged-in user is an admin and viewing their own profile
+  if (req.user.role === 'admin' && req.user.userID === userId) {
+    // Render the userProfile view for the admin
+    res.render('userProfile', { user: req.user });
+  }
+  // If the logged-in user is an admin viewing any profile
+  else if (req.user.role === 'admin') {
+    // Render the admin page with all users
+    db.all("SELECT * FROM users", [], (err, rows) => {
+      if (err) {
+        console.error('Database error:', err.message);
+        res.status(500).send(err.message);
+      } else {
+        res.render('admin', { users: rows });
+      }
+    });
+  }
+  // Non-admins view their own profile
+  else if (req.user.userID === userId) {
+    res.render('userProfile', { user: req.user });
   } else {
     res.status(403).send('Forbidden');
   }

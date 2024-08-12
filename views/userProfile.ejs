@@ -18,8 +18,16 @@
     <% } else if (user.role==='student' && user.userID==='id2' ) { %>
       <a href="/student2">Student2 Page</a>
       <% } else if (user.role==='teacher' ) { %>
-        <a href="/teacher">Teacher Page</a>
-        <% } %>
+        <a href="/teacher">Teacher Page</a><br>
+        <a href="/student1">Student1 Page</a><br>
+        <a href="/student2">Student2 Page</a>
+        <% } else if (user.role==='admin' ) { %>
+          <a href="/admin">Admin Page</a><br>
+          <a href="/teacher">Teacher Page</a><br>
+          <a href="/student1">Student1 Page</a><br>
+          <a href="/student2">Student2 Page</a>
+          <% } %>
+
 </body>
 
 </html>
